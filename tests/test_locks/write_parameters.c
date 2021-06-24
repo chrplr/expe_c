@@ -3,7 +3,7 @@
  *
  */
 
-/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-24 11:58:12 christophe@pallier.org> */
+/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-24 12:10:19 christophe@pallier.org> */
 
 #define _GNU_SOURCE //cause stdio.h to include asprintf
 #include <stdio.h>
@@ -185,18 +185,21 @@ int is_file_modified(char* fname)
 
 int main()
 {
-     struct parameters params;
+     struct parameters params = {
+          .square_length = 1,
+          .square_color = 1,
+          .circle_radius = 1 ,
+          .circle_color = 1,
+          .background_color = 1
+     };
 
-     while (1)  // break with Ctrl-C
+     for (int i; i < 60; i++)
      {
-          while (!is_file_modified(PARAMS_FILE)) { usleep(10); }
-          params = read_parameters(PARAMS_FILE);
-
-          char* buf = NULL;
+          char* buf;
           params_to_toml(params, &buf);
-          puts(buf);
-          puts("\n");
-          free(buf);
+          write_parameters(params, PARAMS_FILE);
+          params.square_length++;
+          sleep(1);
      }
 
      return 0;

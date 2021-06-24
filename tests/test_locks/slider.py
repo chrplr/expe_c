@@ -1,9 +1,9 @@
 #! /usr/bin/env python
-
-from filelock import FileLock
+""" save parameters obtained from sliders into a toml_file, using a write lock to avoid another process to read while the file is updated """
 
 
 from tkinter import *
+from filelock import FileLock
 
 FILE = "params.toml"
 
@@ -17,14 +17,15 @@ FILE = "params.toml"
 
 
 def write_params_to_file():
-    with FileLock(FILE + ".lock"):
-        with open(FILE, "w") as f:
-            f.write(f"square_length = {sl1.get()}\n" +
-                    f"circle_radius = {sl2.get()}\n" +
-                    "circle_color = 0x000000FF\n" +
-                    "square_color = 0xFFFFFFFF\n" +
-                    "background_color = 0xFFFFFFFF\n"
-                    )
+    with FileLock(FILE + ".lock") as lock:
+        with lock.acquire(timeout=10):
+            with open(FILE, "w") as f:
+                f.write(f"square_length = {sl1.get()}\n" +
+                        f"circle_radius = {sl2.get()}\n" +
+                        "circle_color = 0x000000FF\n" +
+                        "square_color = 0xFFFFFFFF\n" +
+                        "background_color = 0xFFFFFFFF\n"
+                        )
 
 
 master = Tk()

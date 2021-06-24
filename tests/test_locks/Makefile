@@ -1,2 +1,7 @@
-read_params: read_params.c
-	gcc -Wall -W -g $^ libtoml.a -o $@
+CFLAGS= -Wall -W -g
+LDLIBS=-ltoml
+
+.PHONY: all
+
+all: read_params write_parameters
+

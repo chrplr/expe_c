@@ -1,5 +1,5 @@
-square_length = 27
-circle_radius = 82
+square_length = 1
+circle_radius = 3
 circle_color = 0x000000FF
 square_color = 0xFFFFFFFF
 background_color = 0xFFFFFFFF
