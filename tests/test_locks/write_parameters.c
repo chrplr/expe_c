@@ -3,7 +3,7 @@
  *
  */
 
-/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-24 12:10:19 christophe@pallier.org> */
+/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-24 12:29:34 christophe@pallier.org> */
 
 #define _GNU_SOURCE //cause stdio.h to include asprintf
 #include <stdio.h>
@@ -68,7 +68,7 @@ void write_parameters(struct parameters p, char* toml_file)
      };
 
      int fd;
-     if ((fd = open(toml_file, O_RDWR | O_CREAT, 0666)) < 0)
+     if ((fd = open(toml_file, O_RDWR | O_CREAT | O_TRUNC, 0666)) < 0)
           error("open failed...", strerror(errno));
 
      if (fcntl(fd, F_SETLKW, &lock) < 0)
@@ -193,10 +193,15 @@ int main()
           .background_color = 1
      };
 
-     for (int i; i < 60; i++)
+     printf("starting... ");
+     for (int i=0; i < 60; i++)
      {
-          char* buf;
+          printf("\n%d:\n ", i);
+          char *buf;
           params_to_toml(params, &buf);
+          puts(buf);
+          free(buf);
+
           write_parameters(params, PARAMS_FILE);
           params.square_length++;
           sleep(1);

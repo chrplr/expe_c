@@ -18,7 +18,7 @@ FILE = "params.toml"
 
 def write_params_to_file():
     with FileLock(FILE + ".lock") as lock:
-        with lock.acquire(timeout=10):
+        with lock.acquire(timeout=1):
             with open(FILE, "w") as f:
                 f.write(f"square_length = {sl1.get()}\n" +
                         f"circle_radius = {sl2.get()}\n" +
