@@ -1,9 +1,12 @@
-/* Displays a square and plays a sound in order to check for potential latency  */
-/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-14 09:37:49 christophe@pallier.org> */
-
-/* compile-command:  "cc -I/usr/include/SDL2  check_audio_visual_asynchrony.c -lSDL2  -o check_audio_visual_asynchrony" */
-/* indent-command: "indent --linux -nut -l120 -pal -nbfda" */
-
+/* Displays a square and plays a sound in order to check for potential latency
+ * -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-29 11:19:41 christophe@pallier.org> 
+ *
+ * compile-command:  "cc -I/usr/include/SDL2  check_audio_visual_asynchrony.c -lSDL2  -o check_audio_visual_asynchrony" 
+ * indent-command: "indent -linux -nut -l120 -pal -nbfda" *
+ * Remark: to switch to nvidia mode on dual GPU systems using prime-select on-demand:
+ *
+ *     __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./check_audio_visual_asynchrony
+ */
 
 /* Copyright © Christophe Pallier
 
@@ -18,25 +21,59 @@
 #include <argp.h>
 #include <SDL2/SDL.h>
 
+static char doc[] = "A loop displaying a square followed by a sound, to test audio-visual asynchrony latencies";
+const char* argp_program_version = "1.0";
+const char* argp_program_bug_address = "<christophe@pallier.org>";
 
-const char *argp_program_version = "check_audio_visual_timing";
-const char *argp_program_bug_address = "<christophe@pallier.org>";
-static char doc[] =
-        "A loop displaying a square followed by a sound, to test audio-visual asynchrony latencies";
-static struct argp argp = { 0, 0, 0, doc };
+struct arguments {
+        int period, soa, duration;
+};
 
+static struct argp_option options[] = {
+        {"period", 'p', "DURATION", 0, "time between two successive squares (in ms)"},
+        {"soa", 's', "DURATION", 0,
+         "stimuli onset asynchrony: desired delay between beginning of display and sound (in ms)"},
+        {"duration", 'd', "DURATION", 0, " duration of display of the square (in ms) "},
+        {0}
+};
+
+static error_t parse_opt(int key, char* arg, struct argp_state* state)
+{
+        struct arguments* arguments = state->input;
+
+        switch (key) {
+        case 'p':
+                arguments->period = atoi(arg);
+                break;
+        case 's':
+                arguments->soa = atoi(arg);
+                break;
+        case 'd':
+                arguments->duration = atoi(arg);
+                break;
+        default:
+                return ARGP_ERR_UNKNOWN;
+        }
+        return 0;
+}
+
+static struct argp argp = { options, parse_opt, 0, doc };
+
+/*  Global variables for Video and Audio */
 SDL_Window* sdlWindow = NULL;
 SDL_Renderer* sdlRenderer = NULL;
+
 SDL_AudioDeviceID dev;
 Uint8* wav_buffer = NULL;
 Uint32 wav_length = 0;
 
+/* Utility functions */
 void create_window(char* title, int width, int height, Uint32 background_color);
 void destroy_window();
 void fill_window(Uint32 background_color);
 void update_window();
 void wait(int millisec);
-Uint64 get_time(); // in ms
+Uint64 get_time();              // in ms
 void wait_for_key_press();
 int quit_pressed();
 void draw_black_rectangle(int x, int y, int side_len);
@@ -46,9 +83,15 @@ void load_wav_file_in_audio_buffer(char* filename);
 void play_audio_buffer();
 int get_remaining_audio();
 
-
 int main(int argc, char* argv[])
 {
+        struct arguments arguments;
+        arguments.period = 3000;
+        arguments.duration = 200;
+        arguments.soa = 0;
+        argp_parse(&argp, argc, argv, 0, 0, &arguments);
+        SDL_Log("#Target: period=%d, duration=%d, soa=%d\n", arguments.period, arguments.duration, arguments.soa);
+
         const int WINDOW_WIDTH = 1280;
         const int WINDOW_HEIGHT = 1280;
         int center_x = WINDOW_WIDTH / 2;
@@ -58,30 +101,21 @@ int main(int argc, char* argv[])
         Uint32 BLACK = 0xFF000000;
         Uint32 WHITE = 0xFFFFFFFF;
 
-        int empty_screen_display_duration = 3000;
-        int rect_display_duration = 25;
-        int stimulus_onset_asynchrony = 0;
         int rect_size = 600;
         int loop = 0;
-        Uint64 t0, t1, t2, t3;
-
-        argp_parse (&argp, argc, argv, 0, 0, 0);
+        Uint64 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
 
         create_window("AV asynchrony check", WINDOW_WIDTH, WINDOW_HEIGHT, WHITE);
         init_audio_device();
-
-        SDL_Log("Target timings:  Rectangle display duration=%d  Audio-Visual asynchrony=%d\n",
-                rect_display_duration,
-                stimulus_onset_asynchrony);
 
         fill_window(WHITE);
         update_window();
         get_time();
 
-        SDL_Log("loop\tt0\tt1\tt2\tt3\n");
+        SDL_Log("loop\tvideo_onset\taudio_onset\tdiff\n");
         while (!quit_pressed()) {
                 loop++;
-                wait(empty_screen_display_duration);
+                wait(arguments.period - (get_time() - t0));
                 t0 = get_time();
 
                 load_wav_file_in_audio_buffer("pluck.wav");
@@ -91,17 +125,28 @@ int main(int argc, char* argv[])
                 update_window();
                 t2 = get_time();
 
-                wait(stimulus_onset_asynchrony);
-                play_audio_buffer();
-                wait(rect_display_duration);
-                fill_window(WHITE);
-                update_window();
-                t3 = get_time();
+                if (arguments.soa < arguments.duration) {
+                        wait(arguments.soa);
+                        play_audio_buffer();
+                        t3 = get_time();
+                        wait(arguments.duration - arguments.soa);       /* bug duration must be > soa */
+                        fill_window(WHITE);
+                        update_window();
+                }
+                else {
+                        wait(arguments.duration);
+                        fill_window(WHITE);
+                        update_window();
+                        wait(arguments.soa - arguments.duration);       /* bug duration must be > soa */
+                        play_audio_buffer();
+                        t3 = get_time();
+                }
 
                 while (get_remaining_audio() > 0) {
                         SDL_Delay(10);
                 }
-                SDL_Log("%4d\t%ld\t%ld\t%ld\t%ld\n", loop, t0, t1 - t0, t2 - t1, t3 - t2);
+                //free_audio_buffer();
+                SDL_Log("%4d\t%ld\t%ld\t%ld\n", loop, t2, t3, t3-t2);
         }
 
         close_audio_device();
@@ -193,7 +238,7 @@ void wait(int millisec)
 Uint64 get_time()
 {
         static Uint64 start = 0;
-        Uint64 now = (SDL_GetPerformanceCounter() * 1000)/ SDL_GetPerformanceFrequency();
+        Uint64 now = (SDL_GetPerformanceCounter() * 1000) / SDL_GetPerformanceFrequency();
         if (start == 0) {
                 start = now;
         }
@@ -303,4 +348,3 @@ int quit_pressed()
         }
         return quit_event;
 }
-

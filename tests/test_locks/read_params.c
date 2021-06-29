@@ -3,7 +3,7 @@
  *
  */
 
-/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-24 11:58:12 christophe@pallier.org> */
+/* -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-27 21:47:57 christophe@pallier.org> */
 
 #define _GNU_SOURCE //cause stdio.h to include asprintf
 #include <stdio.h>
@@ -166,7 +166,7 @@ struct parameters read_parameters(char* toml_file)
 int is_file_modified(char* fname)
 {
      static struct statx statxbuf;
-     static struct statx_timestamp ts0 = {0, 0, 0}, ts1;
+     static struct statx_timestamp ts0 = {0}, ts1 ={0};
      int modified = 0;
 
      statx(AT_FDCWD, fname, 0, STATX_MTIME, &statxbuf);
