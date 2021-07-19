@@ -1,5 +1,5 @@
 /* Displays a square and plays a sound in order to check for potential latency
- * -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-29 11:19:41 christophe@pallier.org> 
+ * -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-07-01 14:57:41 christophe@pallier.org> 
  *
  * compile-command:  "cc -I/usr/include/SDL2  check_audio_visual_asynchrony.c -lSDL2  -o check_audio_visual_asynchrony" 
  * indent-command: "indent -linux -nut -l120 -pal -nbfda" *
@@ -83,6 +83,16 @@ void load_wav_file_in_audio_buffer(char* filename);
 void play_audio_buffer();
 int get_remaining_audio();
 
+const int WINDOW_WIDTH = 1280;
+const int WINDOW_HEIGHT = 1280;
+int center_x = WINDOW_WIDTH / 2;
+int center_y = WINDOW_HEIGHT / 2;
+
+// ARGB codes for colors
+Uint32 BLACK = 0xFF000000;
+Uint32 WHITE = 0xFFFFFFFF;
+
+
 int main(int argc, char* argv[])
 {
         struct arguments arguments;
@@ -92,27 +102,21 @@ int main(int argc, char* argv[])
         argp_parse(&argp, argc, argv, 0, 0, &arguments);
         SDL_Log("#Target: period=%d, duration=%d, soa=%d\n", arguments.period, arguments.duration, arguments.soa);
 
-        const int WINDOW_WIDTH = 1280;
-        const int WINDOW_HEIGHT = 1280;
-        int center_x = WINDOW_WIDTH / 2;
-        int center_y = WINDOW_HEIGHT / 2;
-
-        // ARGB codes for colors
-        Uint32 BLACK = 0xFF000000;
-        Uint32 WHITE = 0xFFFFFFFF;
 
         int rect_size = 600;
         int loop = 0;
-        Uint64 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
+        Uint64 t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0;
 
         create_window("AV asynchrony check", WINDOW_WIDTH, WINDOW_HEIGHT, WHITE);
         init_audio_device();
 
         fill_window(WHITE);
         update_window();
+        wait(1000);  // if not, the refresh rate is weird
+        get_refresh_rate();
         get_time();
 
-        SDL_Log("loop\tvideo_onset\taudio_onset\tdiff\n");
+        SDL_Log("loop\tvideo_onset\tvideo_offset\taudio_onset\tdiff\n");
         while (!quit_pressed()) {
                 loop++;
                 wait(arguments.period - (get_time() - t0));
@@ -129,15 +133,17 @@ int main(int argc, char* argv[])
                         wait(arguments.soa);
                         play_audio_buffer();
                         t3 = get_time();
-                        wait(arguments.duration - arguments.soa);       /* bug duration must be > soa */
+                        wait(arguments.duration - arguments.soa);
                         fill_window(WHITE);
                         update_window();
+                        t4 = get_time();
                 }
                 else {
                         wait(arguments.duration);
                         fill_window(WHITE);
                         update_window();
-                        wait(arguments.soa - arguments.duration);       /* bug duration must be > soa */
+                        t4 = get_time();
+                        wait(arguments.soa - arguments.duration);
                         play_audio_buffer();
                         t3 = get_time();
                 }
@@ -145,14 +151,31 @@ int main(int argc, char* argv[])
                 while (get_remaining_audio() > 0) {
                         SDL_Delay(10);
                 }
-                //free_audio_buffer();
-                SDL_Log("%4d\t%ld\t%ld\t%ld\n", loop, t2, t3, t3-t2);
+                SDL_PauseAudioDevice(dev, 1); // oddity: if you do not pause, the soa will be messed up
+
+                SDL_Log("%4d\t%ld\t%ld\t%ld\t%ld\n", loop, t2, t4, t3, t3-t2);
         }
 
         close_audio_device();
         destroy_window();
 
         return EXIT_SUCCESS;
+}
+
+
+/* import SDL renderer must have been initialized with SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC */
+void get_refresh_rate()
+{
+        for (int i = 0; i < 100; i++)
+        {
+                Uint64 start = SDL_GetPerformanceCounter();
+                draw_black_rectangle(100, 100, 50);
+                update_window();
+                Uint64 end = SDL_GetPerformanceCounter();
+                float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency();
+                printf("Time between succssive frames:  %.2fms\n", 1000*elapsed);
+        }
+
 }
 
 /***************** support functions *************************************/
@@ -301,6 +324,7 @@ void load_wav_file_in_audio_buffer(char* filename)
 void play_audio_buffer()
 {
         SDL_PauseAudioDevice(dev, 0);   // unpause
+        printf(".\n");
 }
 
 void free_audio_buffer()
