@@ -1,8 +1,15 @@
-/* Display a square and plays a sound to hceckthe asynchrony  */
+/* Displays a square and plays a sound in order to check for potential latency
+ * -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-06-29 10:01:42 christophe@pallier.org> 
+ *
+ * compile-command:  "cc -I/usr/include/SDL2  check_audio_visual_asynchrony.c -lSDL2  -o check_audio_visual_asynchrony" 
+ * indent-command: "indent --linux -nut -l120 -pal -nbfda" *
+ * Remark: to switch to nvidia mode on dual GPU systems using prime-select on-demand:
+ *
+ *     __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./check_audio_visual_asynchrony
+ */
+
 
 /* Copyright © Christophe Pallier
-
-   Time-stamp: <2021-06-14 08:04:56 christophe@pallier.org>
 
    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -12,70 +19,127 @@
 
 #include <stdio.h>
 #include <stdlib.h>             // exit
+#include <argp.h>
 #include <SDL2/SDL.h>
 
-// ARGB codes for colors
-Uint32 BLACK = 0xFF000000;
-Uint32 WHITE = 0xFFFFFFFF;
+const char *argp_program_version = "1.0";
+const char *argp_program_bug_address = "<christophe@pallier.org>";
+static char doc[] = "A loop displaying a square followed by a sound, to test audio-visual asynchrony latencies";
 
-const int WINDOW_WIDTH = 1280;
-const int WINDOW_HEIGHT = 1280;
+struct arguments { int period, soa, duration; };
 
-int center_x = WINDOW_WIDTH / 2;
-int center_y = WINDOW_HEIGHT / 2;
+static struct argp_option options[] = {
+        {"period",  'p', "DURATION",  0,  "time between two successive squares (in ms)" },
+        {"soa",     's', "DURATION",  0,  "stimuli onset asynchrony: desired delay between beginning of display and sound (in ms)" },
+        {"duration", 'd', "DURATION",    0,  " duration of display of the square (in ms) " }, 
+  {0}
+};
 
-void create_window(
-        char* title,
-        int width,
-        int height,
-        Uint32 background_color);
-void destroy_window(
-    );
-void fill_window(
-        Uint32 background_color);
-void update_window(
-    );
-int quit_pressed(
-    );
-void wait_for_key_press(
-    );
-void draw_rectangle(
-        int x,
-        int y,
-        int side_len);
-void init_audio_device(
-    );
-void close_audio_device(
-    );
-void load_wav_file_in_audio_buffer(
-        char* filename);
-void play_audio_buffer(
-    );
+static error_t parse_opt (int key, char *arg, struct argp_state *state)
+{
+  struct arguments *arguments = state->input;
 
+  switch (key)
+    {
+    case 'p':
+         arguments->period = atoi(arg);
+         break;
+    case 's':
+         arguments->soa = atoi(arg);
+      break;
+    case 'd':
+         arguments->duration = atoi(arg);
+      break;
+    default:
+      return ARGP_ERR_UNKNOWN;
+    }
+  return 0;
+}
+
+static struct argp argp = { options, parse_opt, 0, doc };
+
+
+/*  Global variables for Video and Audio */ 
 SDL_Window* sdlWindow = NULL;
 SDL_Renderer* sdlRenderer = NULL;
-SDL_AudioDeviceID dev;
 
+SDL_AudioDeviceID dev;
 Uint8* wav_buffer = NULL;
 Uint32 wav_length = 0;
 
-int main(
-    )
+
+/* Utility functions */
+void create_window(char* title, int width, int height, Uint32 background_color);
+void destroy_window();
+void fill_window(Uint32 background_color);
+void update_window();
+void wait(int millisec);
+Uint64 get_time(); // in ms
+void wait_for_key_press();
+int quit_pressed();
+void draw_black_rectangle(int x, int y, int side_len);
+void init_audio_device();
+void close_audio_device();
+void load_wav_file_in_audio_buffer(char* filename);
+void play_audio_buffer();
+int get_remaining_audio();
+
+
+int main(int argc, char* argv[])
 {
+        struct arguments arguments;
+        arguments.period = 3000;
+        arguments.duration = 200;
+        arguments.soa = 0;
+        argp_parse (&argp, argc, argv, 0, 0, &arguments);
+
+        const int WINDOW_WIDTH = 1280;
+        const int WINDOW_HEIGHT = 1280;
+        int center_x = WINDOW_WIDTH / 2;
+        int center_y = WINDOW_HEIGHT / 2;
+
+        // ARGB codes for colors
+        Uint32 BLACK = 0xFF000000;
+        Uint32 WHITE = 0xFFFFFFFF;
+
+        int rect_size = 600;
+        int loop = 0;
+        Uint64 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
+
         create_window("AV asynchrony check", WINDOW_WIDTH, WINDOW_HEIGHT, WHITE);
         init_audio_device();
 
+        SDL_Log("Target timings:  Rectangle display duration=%d  Audio-Visual asynchrony=%d\n",
+                arguments.duration, arguments.soa);
+
+        fill_window(WHITE);
+        update_window();
+        get_time();
+
+        SDL_Log("loop\tt0\tt1\tt2\tt3\n");
         while (!quit_pressed()) {
-                fill_window(WHITE);
-                update_window();
-                SDL_Delay(1000);
+                loop++;
+                wait(arguments.period - (t3 - t0));
+                t0 = get_time();
 
                 load_wav_file_in_audio_buffer("pluck.wav");
+                t1 = get_time();
 
-                draw_rectangle(center_x, center_y, 300);
+                draw_black_rectangle(center_x, center_y, rect_size);
                 update_window();
-                play_audio_buffer();    // shouldn't we call SDLQueueAudio() repeatedly? hum.
-                SDL_Delay(1000);
+                t2 = get_time();
+
+                wait(arguments.soa);
+                play_audio_buffer();
+                wait(arguments.duration);  /* bug duration must be > soa */
+                fill_window(WHITE);
+                update_window();
+                t3 = get_time();
+
+                while (get_remaining_audio() > 0) {
+                        SDL_Delay(10);
+                }
+                SDL_Log("%4d\t%ld\t%ld\t%ld\t%ld\n", loop, t0, t1 - t0, t2 - t1, t3 - t2);
         }
 
         close_audio_device();
@@ -85,9 +149,7 @@ int main(
 }
 
 /***************** support functions *************************************/
-int is_relevant_event(
-        void* nada,
-        SDL_Event * event)
+int is_relevant_event(void* nada, SDL_Event * event)
 /* we want to filter out any event which is not  Close window or keypress */
 {
         if (event->type == SDL_QUIT || event->type == SDL_KEYDOWN)
@@ -95,13 +157,8 @@ int is_relevant_event(
         return 0;
 }
 
-void create_window(
-        char* title,
-        int width,
-        int height,
-        Uint32 background_color)
+void create_window(char* title, int width, int height, Uint32 background_color)
 {
-
         if (SDL_Init(SDL_INIT_VIDEO) != 0) {
                 printf("SDL video initialization failed: %s", SDL_GetError());
                 exit(EXIT_FAILURE);
@@ -133,14 +190,12 @@ void create_window(
         SDL_SetEventFilter(is_relevant_event, NULL);
 }
 
-void update_window(
-    )
+void update_window()
 {
         SDL_RenderPresent(sdlRenderer);
 }
 
-void fill_window(
-        Uint32 background_color)
+void fill_window(Uint32 background_color)
 {
         uint8_t byte3 = (uint8_t) (background_color >> 24);
         uint8_t byte2 = (uint8_t) (background_color >> 16);
@@ -151,16 +206,14 @@ void fill_window(
         SDL_RenderClear(sdlRenderer);
 }
 
-void destroy_window(
-    )
+void destroy_window()
 {
         SDL_DestroyRenderer(sdlRenderer);
         SDL_DestroyWindow(sdlWindow);
         SDL_Quit();
 }
 
-void close_audio_device(
-    )
+void close_audio_device()
 {
         if (!dev) {
                 SDL_CloseAudioDevice(dev);
@@ -170,10 +223,22 @@ void close_audio_device(
         }
 }
 
-void draw_rectangle(
-        int x,
-        int y,
-        int side_len)
+void wait(int millisec)
+{
+        SDL_Delay(millisec);
+}
+
+Uint64 get_time()
+{
+        static Uint64 start = 0;
+        Uint64 now = (SDL_GetPerformanceCounter() * 1000)/ SDL_GetPerformanceFrequency();
+        if (start == 0) {
+                start = now;
+        }
+        return now - start;
+}
+
+void draw_black_rectangle(int x, int y, int side_len)
 {
         SDL_Rect r;
         r.x = x - side_len / 2;
@@ -185,8 +250,7 @@ void draw_rectangle(
         SDL_RenderFillRect(sdlRenderer, &r);
 }
 
-void init_audio_device(
-    )
+void init_audio_device()
 {
         if (SDL_Init(SDL_INIT_AUDIO) != 0) {
                 printf("SDL audio initialization failed: %s", SDL_GetError());
@@ -198,7 +262,7 @@ void init_audio_device(
         desired_specs.freq = 44100;
         desired_specs.format = AUDIO_S16LSB;
         desired_specs.channels = 1;
-        desired_specs.samples = 4096;
+        desired_specs.samples = 256;
 
         if ((dev = SDL_OpenAudioDevice(NULL, 0, &desired_specs, 0, SDL_AUDIO_ALLOW_FORMAT_CHANGE)) == 0) {
                 SDL_Log("Failed to initialize audio device: %s", SDL_GetError());
@@ -206,8 +270,7 @@ void init_audio_device(
         }
 }
 
-void load_wav_file_in_audio_buffer(
-        char* filename)
+void load_wav_file_in_audio_buffer(char* filename)
 {
         SDL_AudioSpec wav_spec;
 
@@ -228,27 +291,23 @@ void load_wav_file_in_audio_buffer(
         }
 }
 
-void play_audio_buffer(
-    )
+void play_audio_buffer()
 {
         SDL_PauseAudioDevice(dev, 0);   // unpause
 }
 
-void free_audio_buffer(
-    )
+void free_audio_buffer()
 {
         if (!wav_buffer)
                 SDL_FreeWAV(wav_buffer);
 }
 
-int get_remaining_audio(
-    )
+int get_remaining_audio()
 {
         return SDL_GetQueuedAudioSize(dev);
 }
 
-void wait_for_key_press(
-    )
+void wait_for_key_press()
 {
         SDL_Event event;
         int running = 1;
@@ -269,8 +328,7 @@ void wait_for_key_press(
         }
 }
 
-int quit_pressed(
-    )
+int quit_pressed()
 {
         SDL_Event event;
         int quit_event = 0;
@@ -284,9 +342,3 @@ int quit_pressed(
         return quit_event;
 }
 
-/* Local Variables:  */
-/* mode: c           */
-/* style: linux      */
-/* compile-command:  "cc -I/usr/include/SDL2  check_audio_visual_asynchrony.c -lSDL2  -o check_audio_visual_asynchrony" */
-/* indent: "indent --linux -nut -l120 -pal -bfda"
-/* End:              */
