@@ -67,16 +67,10 @@ window_size create_fullscreen(Uint32 background_color);
 void fill_window(Uint32 background_color);
 void update_window();
 void wait(int millisec);
-Uint64 get_time();              // in ms
+float get_time();              // in ms
 void wait_for_key_press();
 int quit_pressed();
 void draw_rectangle(int x, int y, int width, int height, int color);
-void init_audio_device();
-void close_audio_device();
-void load_wav_file_in_audio_buffer(char* filename);
-void play_audio_buffer();
-int get_remaining_audio();
-void get_refresh_rate();
 
 const int WINDOW_WIDTH = 1280;
 const int WINDOW_HEIGHT = 1280;
@@ -109,14 +103,13 @@ int main(int argc, char* argv[])
 
         int loop = 0;
 	int xpos = 0, skip = 8;
-	int quit = 0;
 
-	while (!quit) {
+	while (!quit_pressed()) {
 	        loop++;
                 Uint64 start = SDL_GetPerformanceCounter();
 		float t0 = 1000.0 * start / SDL_GetPerformanceFrequency();
 		fill_window(BLACK);
-                draw_rectangle(xpos, center_y, skip, ws.h, WHITE);
+                draw_rectangle(xpos, ws.h / 2, skip, ws.h, WHITE);
                 update_window();
                 Uint64 end = SDL_GetPerformanceCounter();
                 float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency();
@@ -124,23 +117,7 @@ int main(int argc, char* argv[])
 		loop++;
 		xpos = (xpos + skip) % ws.w;
 		
-		SDL_Event event;
-	        if( SDL_PollEvent( &event ) )
-                {
-		  switch(event.type) {
-		  case SDL_QUIT:
-		    quit = 1;
-		    break;
-		  case SDL_KEYDOWN:
-		    switch(event.key.keysym.sym) {
-		    case SDLK_ESCAPE: 
-		      quit = 1;
-		      break;
-		    }
-		  }
-		}
-			
-        }
+	}
 
         destroy_window();
 
@@ -148,20 +125,6 @@ int main(int argc, char* argv[])
 }
 
 
-/* import SDL renderer must have been initialized with SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC */
-void get_refresh_rate()
-{
-        for (int i = 0; i < 100; i++)
-        {
-                Uint64 start = SDL_GetPerformanceCounter();
-                draw_rectangle(100, 100, 50, 50, WHITE);
-                update_window();
-                Uint64 end = SDL_GetPerformanceCounter();
-                float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency();
-                printf("Time between succssive frames:  %.2fms\n", 1000*elapsed);
-        }
-
-}
 
 /***************** support functions *************************************/
 int is_relevant_event(void* nada, SDL_Event * event)
@@ -268,26 +231,17 @@ void destroy_window()
         SDL_Quit();
 }
 
-void close_audio_device()
-{
-        if (!dev) {
-                SDL_CloseAudioDevice(dev);
-        }
-        if (!wav_buffer) {
-                SDL_FreeWAV(wav_buffer);
-        }
-}
 
 void wait(int millisec)
 {
         SDL_Delay(millisec);
 }
 
-Uint64 get_time()
+float get_time()
 {
-        static Uint64 start = 0;
-        Uint64 now = (SDL_GetPerformanceCounter() * 1000) / SDL_GetPerformanceFrequency();
-        if (start == 0) {
+        static float start = 0.0;
+        float now = (SDL_GetPerformanceCounter() * 1000.0) / SDL_GetPerformanceFrequency();
+        if (start == 0.0) {
                 start = now;
         }
         return now - start;
@@ -305,63 +259,6 @@ void draw_rectangle(int x, int y, int width, int height, int color)
         SDL_RenderFillRect(sdlRenderer, &r);
 }
 
-void init_audio_device()
-{
-        if (SDL_Init(SDL_INIT_AUDIO) != 0) {
-                printf("SDL audio initialization failed: %s", SDL_GetError());
-                exit(EXIT_FAILURE);
-        }
-
-        SDL_AudioSpec desired_specs;
-        SDL_memset(&desired_specs, 0, sizeof(desired_specs));   /* or SDL_zero(want) */
-        desired_specs.freq = 44100;
-        desired_specs.format = AUDIO_S16LSB;
-        desired_specs.channels = 1;
-        desired_specs.samples = 256;
-
-        if ((dev = SDL_OpenAudioDevice(NULL, 0, &desired_specs, 0, SDL_AUDIO_ALLOW_FORMAT_CHANGE)) == 0) {
-                SDL_Log("Failed to initialize audio device: %s", SDL_GetError());
-                exit(1);
-        }
-}
-
-void load_wav_file_in_audio_buffer(char* filename)
-{
-        SDL_AudioSpec wav_spec;
-
-        free(wav_buffer);       // deallocate previously allocated  buffer safe on NULL
-
-        if (SDL_LoadWAV(filename, &wav_spec, &wav_buffer, &wav_length) == NULL) {
-                SDL_Log("Failed to load wav file %s: %s", filename, SDL_GetError());
-                exit(1);
-        }
-
-        if ((wav_spec.freq != 44100) || wav_spec.channels != 1) {
-                SDL_Log("The sound file should have a single channel (mono) and a sampling freq of 44100 Hz");
-                exit(1);
-        }
-
-        if (SDL_QueueAudio(dev, wav_buffer, wav_length) != 0) {
-                SDL_Log("%s", SDL_GetError());
-        }
-}
-
-void play_audio_buffer()
-{
-        SDL_PauseAudioDevice(dev, 0);   // unpause
-        printf(".\n");
-}
-
-void free_audio_buffer()
-{
-        if (!wav_buffer)
-                SDL_FreeWAV(wav_buffer);
-}
-
-int get_remaining_audio()
-{
-        return SDL_GetQueuedAudioSize(dev);
-}
 
 void wait_for_key_press()
 {
@@ -390,10 +287,19 @@ int quit_pressed()
         int quit_event = 0;
 
         while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_QUIT) {
-                        quit_event = 1;
-                        break;
-                }
-        }
+	  switch(event.type) {
+	  case SDL_QUIT:
+	    quit_event = 1;
+	    break;
+	  case SDL_KEYDOWN:
+	    switch(event.key.keysym.sym) {
+	    case SDLK_ESCAPE: 
+	      quit_event = 1;
+	      break;
+	    }
+	  }
+	}
+
         return quit_event;
 }
+
