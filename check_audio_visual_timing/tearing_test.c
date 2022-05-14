@@ -103,9 +103,9 @@ int main(int argc, char* argv[])
 
         int loop = 0;
 	int xpos = 0, skip = 8;
+	float start_loop_time = get_time();
 
 	while (!quit_pressed()) {
-	        loop++;
                 Uint64 start = SDL_GetPerformanceCounter();
 		float t0 = 1000.0 * start / SDL_GetPerformanceFrequency();
 		fill_window(BLACK);
@@ -116,11 +116,12 @@ int main(int argc, char* argv[])
                 SDL_Log("%.2f\t%.2f\n", t0, 1000 * elapsed);
 		loop++;
 		xpos = (xpos + skip) % ws.w;
-		
 	}
-
+        float end_loop_time = get_time();
+	
         destroy_window();
 
+	printf("FPS = %lf\n", 1000.0 * loop / (end_loop_time - start_loop_time)); 
         return EXIT_SUCCESS;
 }
 
@@ -255,7 +256,13 @@ void draw_rectangle(int x, int y, int width, int height, int color)
         r.w = width;
         r.h = height;
 
-        SDL_SetRenderDrawColor(sdlRenderer, 255, 255, 255, 255);  // TODO: put color in 
+        uint8_t byte3 = (uint8_t) (color >> 24);
+        uint8_t byte2 = (uint8_t) (color >> 16);
+        uint8_t byte1 = (uint8_t) (color >> 8);
+        uint8_t byte0 = (uint8_t) color;
+
+	
+        SDL_SetRenderDrawColor(sdlRenderer, byte0, byte1, byte2, byte3); 
         SDL_RenderFillRect(sdlRenderer, &r);
 }
 
