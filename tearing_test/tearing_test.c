@@ -1,7 +1,7 @@
-/* Displays a mocing vertical bar
+/* Library for programming psychology experiments.
  * -*- mode:c; c-default-style: linux  -*- Time-stamp: <2021-07-01 14:57:41 christophe@pallier.org> 
  *
- * compile-command:  "cc -I/usr/include/SDL2  tearing_test.c -lSDL2  -o tearing_test"
+ * compile-command:  "cc -I/usr/include/SDL2  psychexp.c -lSDL2  -o psychexp.o
  * indent-command: "indent -linux -nut -l120 -pal -nbfda" *
  * Remark: to switch to nvidia mode on dual GPU systems using prime-select on-demand:
  *
