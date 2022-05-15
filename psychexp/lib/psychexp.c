@@ -34,6 +34,14 @@ SDL_AudioDeviceID dev;
 Uint8* wav_buffer = NULL;
 Uint32 wav_length = 0;
 
+int is_relevant_event(void* nada, SDL_Event * event)
+/* filtering out any event which is not "Close window" or "keypress" */
+{
+        if (event->type == SDL_QUIT || event->type == SDL_KEYDOWN)
+                return 1;
+        return 0;
+}
+
 
 void create_window(char* title, int width, int height, Uint32 background_color)
 {
@@ -237,10 +245,3 @@ void get_refresh_rate()
 }
 
 
-int is_relevant_event(void* nada, SDL_Event * event)
-/* we want to filter out any event which is not  Close window or keypress */
-{
-        if (event->type == SDL_QUIT || event->type == SDL_KEYDOWN)
-                return 1;
-        return 0;
-}

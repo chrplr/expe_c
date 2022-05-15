@@ -1,0 +1,31 @@
+Library for programming psychological experiments
+
+It essentially relies on a SDL2 (see <https://www.libsdl.org>)
+
+
+# Prerequisites
+
+You need a environment to compile and build C programs (gcc, make, ...): 
+
+    sudo apt install build-essential 
+
+You must have the SDL2 library source installed on your system. Under Ubuntu, this means running:
+
+    sudo apt install libsdl2-dev
+
+
+
+
+# Installation
+
+    ./configure
+    make
+    sudo make install
+
+To use it
+
+1.  Your source code should contain 
+
+        #include <psychexp.h>
+
+2. Compile with `-lSDL2 -lpsychexp`
