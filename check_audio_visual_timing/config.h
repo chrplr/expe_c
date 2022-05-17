@@ -1,9 +1,6 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define to 1 if you have the <dlfcn.h> header file. */
-#define HAVE_DLFCN_H 1
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
@@ -37,23 +34,20 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* Define to the sub-directory where libtool stores uninstalled libraries. */
-#define LT_OBJDIR ".libs/"
-
 /* Name of package */
-#define PACKAGE "libpsychexpe"
+#define PACKAGE "check_audio_visual_timing"
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "christophe@pallier.org"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "libpsychexpe"
+#define PACKAGE_NAME "check_audio_visual_timing"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libpsychexpe 0.0.1"
+#define PACKAGE_STRING "check_audio_visual_timing 0.0.1"
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "libpsychexpe"
+#define PACKAGE_TARNAME "check_audio_visual_timing"
 
 /* Define to the home page for this package. */
 #define PACKAGE_URL ""
@@ -66,12 +60,3 @@
 
 /* Version number of package */
 #define VERSION "0.0.1"
-
-/* Define for Solaris 2.5.1 so the uint8_t typedef from <sys/synch.h>,
-   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
-   #define below would cause a syntax error. */
-/* #undef _UINT8_T */
-
-/* Define to the type of an unsigned integer type of width exactly 8 bits if
-   such a type exists and the standard includes do not define it. */
-/* #undef uint8_t */

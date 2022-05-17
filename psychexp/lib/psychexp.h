@@ -17,12 +17,14 @@
 */
 
 #ifndef _PSYCHEXP_H_
-#define _PSYCHEXP_H_
+#define _PSYCHEXP_H_ 1
 
 #include <stdio.h>
 #include <stdlib.h>             // exit
 #include <SDL2/SDL.h>
 
+
+typedef struct { int w; int h; } window_size;
 
 // ARGB codes for colors
 extern Uint32 BLACK;
@@ -41,6 +43,7 @@ extern Uint8* wav_buffer;
 extern Uint32 wav_length;
 
 /* Utility functions */
+extern window_size create_fullscreen(Uint32 background_color);
 extern void create_window(char* title, int width, int height, Uint32 background_color);
 extern void destroy_window();
 extern void fill_window(Uint32 background_color);
@@ -56,7 +59,5 @@ extern void close_audio_device();
 extern void load_wav_file_in_audio_buffer(char* filename);
 extern void play_audio_buffer();
 extern int get_remaining_audio();
-
-
 
 #endif

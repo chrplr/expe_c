@@ -1,0 +1,41 @@
+`check_audio_visual_timing` displays a square and plays a sound in order to check for potential latencies.
+
+
+# Installation
+
+## prerequisites:
+
+The libraries `sdl2` `psychexp` must be installed.
+
+## Compilation
+
+./configure --prefix=$HOME && make && make install
+
+
+# Usage
+
+```
+Usage: check_audio_visual_timing [OPTION...]
+A loop displaying a square followed by a sound, to test audio-visual asynchrony
+latencies
+
+  -d, --duration=DURATION     duration of display of the square (in ms) 
+  -p, --period=DURATION      time between two successive squares (in ms)
+  -s, --soa=DURATION         stimuli onset asynchrony: desired delay between
+                             beginning of display and sound (in ms)
+  -?, --help                 Give this help list
+      --usage                Give a short usage message
+  -V, --version              Print program version
+
+Mandatory or optional arguments to long options are also mandatory or optional
+for any corresponding short options.
+
+Report bugs to <christophe@pallier.org>.
+```
+
+
+   ./check_audio_visual_timing
+
+Remark: to switch to nvidia mode on dual GPU systems using prime-select on-demand:
+
+   __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./check_audio_visual_timing

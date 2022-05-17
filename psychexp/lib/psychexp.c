@@ -42,6 +42,46 @@ int is_relevant_event(void* nada, SDL_Event * event)
         return 0;
 }
 
+window_size create_fullscreen(Uint32 background_color)
+{
+        if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+                printf("SDL video initialization failed: %s", SDL_GetError());
+                exit(EXIT_FAILURE);
+        }
+
+        sdlWindow = SDL_CreateWindow("Tearing Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL);
+
+        if (sdlWindow == NULL) {
+                printf("SDL_CreateWindow failed: %s", SDL_GetError());
+                exit(EXIT_FAILURE);
+        }
+
+        sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+        if (sdlRenderer == NULL) {
+                printf("SDL_CreateRenderer failed: %s\n", SDL_GetError());
+                exit(EXIT_FAILURE);
+        }
+
+
+	int w, h;
+        SDL_GetRendererOutputSize(sdlRenderer, &w, &h);
+
+        uint8_t byte3 = (uint8_t) (background_color >> 24);
+        uint8_t byte2 = (uint8_t) (background_color >> 16);
+        uint8_t byte1 = (uint8_t) (background_color >> 8);
+        uint8_t byte0 = (uint8_t) background_color;
+
+        SDL_SetRenderDrawColor(sdlRenderer, byte0, byte1, byte2, byte3);
+        SDL_RenderClear(sdlRenderer);
+        SDL_RenderPresent(sdlRenderer);
+
+        SDL_SetEventFilter(is_relevant_event, NULL);
+
+	window_size resolution = {.w = w, .h = h}; 
+	return resolution; 
+}
+
 
 void create_window(char* title, int width, int height, Uint32 background_color)
 {
@@ -75,6 +115,8 @@ void create_window(char* title, int width, int height, Uint32 background_color)
 
         SDL_SetEventFilter(is_relevant_event, NULL);
 }
+
+
 
 void update_window()
 {
