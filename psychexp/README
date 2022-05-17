@@ -7,17 +7,17 @@ It essentially relies on a SDL2 (see <https://www.libsdl.org>)
 
 You need a environment to compile and build C programs (gcc, make, ...): 
 
-    sudo apt install build-essential 
+    sudo apt install build-essential autotools libtool
 
 You must have the SDL2 library source installed on your system. Under Ubuntu, this means running:
 
     sudo apt install libsdl2-dev
 
 
-
-
 # Installation
 
+    libtoolize
+    autoreconf
     ./configure
     make
     sudo make install
